@@ -75,6 +75,13 @@ void draw_map(
             fill_rectangle(pixels, largeur_pix, hauteur_pix, abs * rapport1, ord * rapport2, rapport1, rapport2, 0xFFFFFFFF);
 
         }
+        else if (map[i] == 1){
+            int abs = i%largeur_map;
+            int ord = i/largeur_map;
+            fill_rectangle(pixels, largeur_pix, hauteur_pix, abs * rapport1, ord * rapport2, rapport1, rapport2, 0xFF000000);
+
+        };
+
     }
 }
 
@@ -102,6 +109,11 @@ int main(int argc, char* argv[]) {
 
     // Dessiner la carte
     draw_map(pixels, map, largeur, hauteur, largeur_map, hauteur_map);
+
+    // Position du joueur
+    int player_x = 20;
+    int player_y = 20;
+    fill_circle(pixels, largeur, hauteur, player_x, player_y, 10, 0xFF00FF00); //Joueur vert
 
     // Initialiser SDL
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -146,7 +158,30 @@ int main(int argc, char* argv[]) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             }
+
+            if (event.type == SDL_EVENT_KEY_DOWN){
+                switch (event.key.key) {
+                    case SDLK_ESCAPE:
+                        running = false;
+                        break;
+                    case SDLK_UP:
+                        player_y -= 5;
+                        break;
+                    case SDLK_DOWN:
+                        player_y += 5;
+                        break;
+                    case SDLK_LEFT:
+                        player_x -= 5;
+                        break;
+                    case SDLK_RIGHT:
+                        player_x += 5;
+                        break;
+                }
+            }
         }
+        
+        draw_map(pixels, map, largeur, hauteur, largeur_map, hauteur_map);
+        fill_circle(pixels, largeur, hauteur, player_x, player_y, 10, 0xFF00FF00);
 
         SDL_UpdateTexture(
             texture, nullptr,
