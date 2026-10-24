@@ -4,86 +4,62 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include "utils.cpp"
 
 
-int conversion(int x, int y, int largeur, int hauteur){
-    return y * largeur + x;
-}
+struct Player {
+    int x;
+    int y;
+    int radius;
+};
 
-void fill_rectangle(
-    std::vector<uint32_t>& pixels,
-    int largeur,
-    int hauteur,
-    int x0,
-    int y0,
-    int w,
-    int h,
-    uint32_t color
-){
-    
-    for (int i = x0 ; i < x0 + w; i++){
-        for (int j = y0; j < y0 + h; j++ ){
-            pixels[conversion(i, j, largeur, hauteur)] = color;
-
-        }
-
-    }
+struct Ray {
+    float Dir_x;    // Direction du rayon
+    float Dir_y;    // Direction du rayon
+    float Plane_x;  // Plan de la caméra
+    float Plane_y;  // Plan de la caméra
+};
 
 
-}
+void handle_events(bool& running, Player& player, const std::vector<int>& map, int largeur_map, int hauteur_map, int largeur, int hauteur) {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
 
-void fill_circle(
-    std::vector<uint32_t>& pixels,
-    int largeur,
-    int hauteur,
-    int cx,
-    int cy,
-    int r,
-    uint32_t color
-){
-     for (int i = cx - r; i <= cx + r; i++){
-        for (int j = cy - r; j <= cy + r; j++ ){
-            if ((cx - i) * (cx - i) + (cy - j) * (cy - j) <= r*r) {
-                if (i >= 0 && i < largeur &&
-                    j >= 0 && j < hauteur) {
-                        pixels[conversion(i, j, largeur, hauteur)] = color;
-
-                    }
-                
+            if (event.type == SDL_EVENT_QUIT) {
+                running = false;
             }
 
+            if (event.type == SDL_EVENT_KEY_DOWN){
+                switch (event.key.key) {
+                    case SDLK_ESCAPE:
+                        running = false;
+                        break;
+                    case SDLK_UP:
+                    // Vérifier si le joueur peut se déplacer vers le haut
+                        if (!collision(player.x, player.y - 5, map, largeur_map, hauteur_map, largeur, hauteur)) {
+                            player.y -= 5;
+                        }
+                        break;
+                    case SDLK_DOWN:
+                        if (!collision(player.x, player.y + 5, map, largeur_map, hauteur_map, largeur, hauteur)) {
+                            player.y += 5;
+                        }
+                        break;
+                    case SDLK_LEFT:
+                        if (!collision(player.x - 5, player.y, map, largeur_map, hauteur_map, largeur, hauteur)) {
+                            player.x -= 5;
+                        }
+                        break;
+                    case SDLK_RIGHT:
+                        if (!collision(player.x + 5, player.y, map, largeur_map, hauteur_map, largeur, hauteur)) {
+                            player.x += 5;
+                        }
+                        break;
+                }
+            }
         }
 
     }
-}
-
-// Prend une map de 0 et 1 et dessine les cases correspondantes sur l'image
-void draw_map(
-    std::vector<uint32_t>& pixels,
-    const std::vector<int>& map,
-    int largeur_pix,
-    int hauteur_pix,
-    int largeur_map,
-    int hauteur_map
-){
-    int rapport1 = largeur_pix / largeur_map;
-    int rapport2 = hauteur_pix / hauteur_map;
-    for (int i = 0; i < map.size(); i++){
-        if (map[i] == 0){
-            int abs = i%largeur_map;
-            int ord = i/largeur_map;
-            fill_rectangle(pixels, largeur_pix, hauteur_pix, abs * rapport1, ord * rapport2, rapport1, rapport2, 0xFFFFFFFF);
-
-        }
-        else if (map[i] == 1){
-            int abs = i%largeur_map;
-            int ord = i/largeur_map;
-            fill_rectangle(pixels, largeur_pix, hauteur_pix, abs * rapport1, ord * rapport2, rapport1, rapport2, 0xFF000000);
-
-        };
-
-    }
-}
 
 
 int main(int argc, char* argv[]) {
@@ -111,9 +87,15 @@ int main(int argc, char* argv[]) {
     draw_map(pixels, map, largeur, hauteur, largeur_map, hauteur_map);
 
     // Position du joueur
-    int player_x = 20;
-    int player_y = 20;
-    fill_circle(pixels, largeur, hauteur, player_x, player_y, 10, 0xFF00FF00); //Joueur vert
+    Player player;
+    player.x = 100;
+    player.y = 100;
+    player.radius = 10;
+
+    //Rayon de vision du joueur
+    Ray ray;
+    
+    fill_circle(pixels, largeur, hauteur, player.x, player.y, player.radius, 0xFF00FF00); //Joueur vert
 
     // Initialiser SDL
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -121,12 +103,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    
     // Créer la fenêtre et le renderer
     SDL_Window* window = nullptr; //pointer vers la fenêtre SDL
     SDL_Renderer* renderer = nullptr; //pointer vers le renderer SDL
 
     if (!SDL_CreateWindowAndRenderer(
-            "Mon moteur graphique",
+            "RayCaster",
             largeur, hauteur, 0,
             &window, &renderer)) {
         std::cerr << SDL_GetError() << '\n';
@@ -154,34 +137,21 @@ int main(int argc, char* argv[]) {
     SDL_Event event;
 
     while (running) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) {
-                running = false;
-            }
 
-            if (event.type == SDL_EVENT_KEY_DOWN){
-                switch (event.key.key) {
-                    case SDLK_ESCAPE:
-                        running = false;
-                        break;
-                    case SDLK_UP:
-                        player_y -= 5;
-                        break;
-                    case SDLK_DOWN:
-                        player_y += 5;
-                        break;
-                    case SDLK_LEFT:
-                        player_x -= 5;
-                        break;
-                    case SDLK_RIGHT:
-                        player_x += 5;
-                        break;
-                }
-            }
-        }
+        handle_events(running, player, map, largeur_map, hauteur_map, largeur, hauteur);
         
         draw_map(pixels, map, largeur, hauteur, largeur_map, hauteur_map);
-        fill_circle(pixels, largeur, hauteur, player_x, player_y, 10, 0xFF00FF00);
+        SDL_PumpEvents();
+
+        //On dessine une ligne de direction pointant vers la souris
+        float souris_x, souris_y;
+        SDL_GetMouseState(&souris_x, &souris_y);
+        ray.Dir_x = souris_x - player.x;
+        ray.Dir_y = souris_y - player.y;
+
+        
+        
+        fill_circle(pixels, largeur, hauteur, player.x, player.y, player.radius, 0xFF00FF00);
 
         SDL_UpdateTexture(
             texture, nullptr,
